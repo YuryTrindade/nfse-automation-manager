@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { CalendarIcon, Search, Send, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAddSystemLog } from "@/hooks/useSystemLogs";
 
 const CustomSend = () => {
   const [cnpjPrestador, setCnpjPrestador] = useState("");
@@ -22,6 +22,7 @@ const CustomSend = () => {
   const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
+  const addLogMutation = useAddSystemLog();
 
   // Dados simulados para demonstração
   const mockResults = [
@@ -47,17 +48,46 @@ const CustomSend = () => {
     }
   ];
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     setIsSearching(true);
-    // Simular busca no backend
-    setTimeout(() => {
-      setSearchResults(mockResults);
-      setIsSearching(false);
-      toast({
-        title: "Busca concluída",
-        description: `${mockResults.length} notas encontradas`,
+    
+    try {
+      // Registrar log de busca
+      await addLogMutation.mutateAsync({
+        timestamp: new Date().toISOString(),
+        type: 'info',
+        message: 'Busca personalizada de notas iniciada',
+        details: `Filtros: CNPJ: ${cnpjPrestador}, Serviço: ${cdServico}, Período: ${dataInicio ? format(dataInicio, 'dd/MM/yyyy') : 'N/A'} - ${dataFim ? format(dataFim, 'dd/MM/yyyy') : 'N/A'}`,
       });
-    }, 1500);
+
+      // Simular busca no backend
+      setTimeout(async () => {
+        setSearchResults(mockResults);
+        setIsSearching(false);
+        
+        // Registrar log de resultado
+        await addLogMutation.mutateAsync({
+          timestamp: new Date().toISOString(),
+          type: 'success',
+          message: 'Busca personalizada concluída',
+          details: `${mockResults.length} notas encontradas para os filtros aplicados`,
+          notes_count: mockResults.length,
+        });
+
+        toast({
+          title: "Busca concluída",
+          description: `${mockResults.length} notas encontradas`,
+        });
+      }, 1500);
+    } catch (error) {
+      setIsSearching(false);
+      await addLogMutation.mutateAsync({
+        timestamp: new Date().toISOString(),
+        type: 'error',
+        message: 'Erro na busca personalizada',
+        details: `Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+      });
+    }
   };
 
   const toggleNoteSelection = (noteId: string) => {
@@ -76,7 +106,7 @@ const CustomSend = () => {
     setSelectedNotes([]);
   };
 
-  const handleCustomSend = () => {
+  const handleCustomSend = async () => {
     if (selectedNotes.length === 0) {
       toast({
         title: "Nenhuma nota selecionada",
@@ -86,14 +116,39 @@ const CustomSend = () => {
       return;
     }
 
-    toast({
-      title: "Envio iniciado",
-      description: `${selectedNotes.length} notas foram enviadas para processamento`,
-    });
-    
-    // Reset após envio
-    setSelectedNotes([]);
-    setSearchResults([]);
+    try {
+      // Registrar log de envio
+      await addLogMutation.mutateAsync({
+        timestamp: new Date().toISOString(),
+        type: 'success',
+        message: 'Envio personalizado iniciado',
+        details: `${selectedNotes.length} notas selecionadas para envio personalizado`,
+        notes_count: selectedNotes.length,
+      });
+
+      toast({
+        title: "Envio iniciado",
+        description: `${selectedNotes.length} notas foram enviadas para processamento`,
+      });
+      
+      // Reset após envio
+      setSelectedNotes([]);
+      setSearchResults([]);
+    } catch (error) {
+      await addLogMutation.mutateAsync({
+        timestamp: new Date().toISOString(),
+        type: 'error',
+        message: 'Erro no envio personalizado',
+        details: `Erro ao enviar ${selectedNotes.length} notas: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        notes_count: selectedNotes.length,
+      });
+
+      toast({
+        title: "Erro no envio",
+        description: "Houve um problema ao enviar as notas",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

@@ -1,11 +1,10 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { 
   Settings, 
@@ -16,65 +15,121 @@ import {
   Save, 
   TestTube,
   Eye,
-  EyeOff
+  EyeOff,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSystemSettings, useUpdateSystemSetting } from "@/hooks/useSystemSettings";
+import { useAddSystemLog } from "@/hooks/useSystemLogs";
 
 const SystemSettings = () => {
   const [showPasswords, setShowPasswords] = useState(false);
-  const [settings, setSettings] = useState({
-    // Configurações de banco
-    dbHost: "localhost",
-    dbPort: "1433",
-    dbName: "nfse_db",
-    dbUser: "admin",
-    dbPassword: "****",
-    
-    // Configurações de API
-    apiUrl: "https://api.plugnotas.com.br/nfse",
-    apiKey: "****",
-    
-    // Configurações de email
-    smtpHost: "smtp.gmail.com",
-    smtpPort: "587",
-    smtpUser: "sistema@empresa.com",
-    smtpPassword: "****",
-    smtpFromName: "Sistema NFSe",
-    
-    // Configurações de agendamento
-    scheduledTime: "18:00",
-    timezone: "America/Sao_Paulo",
-    retryAttempts: "3",
-    retryInterval: "30"
-  });
-
+  const [localSettings, setLocalSettings] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
-  const handleSave = () => {
-    toast({
-      title: "Configurações salvas",
-      description: "As configurações foram atualizadas com sucesso",
-    });
+  const { data: settings = [], isLoading } = useSystemSettings();
+  const updateSettingMutation = useUpdateSystemSetting();
+  const addLogMutation = useAddSystemLog();
+
+  // Carregar configurações para o estado local
+  useEffect(() => {
+    if (settings.length > 0) {
+      const settingsMap = settings.reduce((acc, setting) => {
+        acc[setting.key] = setting.value || '';
+        return acc;
+      }, {} as Record<string, string>);
+      setLocalSettings(settingsMap);
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
+    try {
+      // Salvar apenas configurações que mudaram
+      const promises = Object.entries(localSettings).map(([key, value]) => {
+        const originalSetting = settings.find(s => s.key === key);
+        if (originalSetting && originalSetting.value !== value) {
+          return updateSettingMutation.mutateAsync({ key, value });
+        }
+        return Promise.resolve();
+      });
+
+      await Promise.all(promises);
+
+      // Registrar log de sucesso
+      await addLogMutation.mutateAsync({
+        timestamp: new Date().toISOString(),
+        type: 'success',
+        message: 'Configurações do sistema atualizadas',
+        details: 'Configurações salvas com sucesso pelo usuário',
+      });
+
+      toast({
+        title: "Configurações salvas",
+        description: "As configurações foram atualizadas com sucesso",
+      });
+    } catch (error) {
+      // Registrar log de erro
+      await addLogMutation.mutateAsync({
+        timestamp: new Date().toISOString(),
+        type: 'error',
+        message: 'Erro ao salvar configurações',
+        details: `Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+      });
+
+      toast({
+        title: "Erro ao salvar",
+        description: "Houve um problema ao salvar as configurações",
+        variant: "destructive",
+      });
+    }
   };
 
-  const testConnection = (type: string) => {
+  const testConnection = async (type: string) => {
     toast({
       title: `Testando ${type}...`,
       description: "Verificando conectividade...",
     });
     
-    // Simular teste
-    setTimeout(() => {
-      toast({
-        title: `Teste de ${type} concluído`,
-        description: "Conexão estabelecida com sucesso",
-      });
+    // Simular teste e registrar log
+    setTimeout(async () => {
+      try {
+        await addLogMutation.mutateAsync({
+          timestamp: new Date().toISOString(),
+          type: 'success',
+          message: `Teste de ${type} realizado`,
+          details: `Teste de conectividade ${type} executado com sucesso`,
+        });
+
+        toast({
+          title: `Teste de ${type} concluído`,
+          description: "Conexão estabelecida com sucesso",
+        });
+      } catch (error) {
+        await addLogMutation.mutateAsync({
+          timestamp: new Date().toISOString(),
+          type: 'error',
+          message: `Falha no teste de ${type}`,
+          details: `Erro no teste de conectividade: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        });
+      }
     }, 2000);
   };
 
   const updateSetting = (key: string, value: string) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setLocalSettings(prev => ({ ...prev, [key]: value }));
   };
+
+  const getSetting = (key: string, defaultValue: string = '') => {
+    return localSettings[key] || defaultValue;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -95,8 +150,8 @@ const SystemSettings = () => {
               <Label htmlFor="dbHost">Host/Servidor</Label>
               <Input
                 id="dbHost"
-                value={settings.dbHost}
-                onChange={(e) => updateSetting("dbHost", e.target.value)}
+                value={getSetting("db_host")}
+                onChange={(e) => updateSetting("db_host", e.target.value)}
                 placeholder="localhost ou IP do servidor"
               />
             </div>
@@ -104,8 +159,8 @@ const SystemSettings = () => {
               <Label htmlFor="dbPort">Porta</Label>
               <Input
                 id="dbPort"
-                value={settings.dbPort}
-                onChange={(e) => updateSetting("dbPort", e.target.value)}
+                value={getSetting("db_port", "1433")}
+                onChange={(e) => updateSetting("db_port", e.target.value)}
                 placeholder="1433"
               />
             </div>
@@ -113,8 +168,8 @@ const SystemSettings = () => {
               <Label htmlFor="dbName">Nome do Banco</Label>
               <Input
                 id="dbName"
-                value={settings.dbName}
-                onChange={(e) => updateSetting("dbName", e.target.value)}
+                value={getSetting("db_name")}
+                onChange={(e) => updateSetting("db_name", e.target.value)}
                 placeholder="nome_do_banco"
               />
             </div>
@@ -122,8 +177,8 @@ const SystemSettings = () => {
               <Label htmlFor="dbUser">Usuário</Label>
               <Input
                 id="dbUser"
-                value={settings.dbUser}
-                onChange={(e) => updateSetting("dbUser", e.target.value)}
+                value={getSetting("db_user")}
+                onChange={(e) => updateSetting("db_user", e.target.value)}
                 placeholder="usuário do banco"
               />
             </div>
@@ -135,8 +190,8 @@ const SystemSettings = () => {
               <Input
                 id="dbPassword"
                 type={showPasswords ? "text" : "password"}
-                value={settings.dbPassword}
-                onChange={(e) => updateSetting("dbPassword", e.target.value)}
+                value={getSetting("db_password")}
+                onChange={(e) => updateSetting("db_password", e.target.value)}
                 placeholder="senha do banco"
               />
               <Button
@@ -178,8 +233,8 @@ const SystemSettings = () => {
             <Label htmlFor="apiUrl">URL da API</Label>
             <Input
               id="apiUrl"
-              value={settings.apiUrl}
-              onChange={(e) => updateSetting("apiUrl", e.target.value)}
+              value={getSetting("api_url", "https://api.plugnotas.com.br/nfse")}
+              onChange={(e) => updateSetting("api_url", e.target.value)}
               placeholder="https://api.plugnotas.com.br/nfse"
             />
           </div>
@@ -190,8 +245,8 @@ const SystemSettings = () => {
               <Input
                 id="apiKey"
                 type={showPasswords ? "text" : "password"}
-                value={settings.apiKey}
-                onChange={(e) => updateSetting("apiKey", e.target.value)}
+                value={getSetting("api_key")}
+                onChange={(e) => updateSetting("api_key", e.target.value)}
                 placeholder="sua_chave_da_api"
               />
             </div>
@@ -225,8 +280,8 @@ const SystemSettings = () => {
               <Label htmlFor="smtpHost">Servidor SMTP</Label>
               <Input
                 id="smtpHost"
-                value={settings.smtpHost}
-                onChange={(e) => updateSetting("smtpHost", e.target.value)}
+                value={getSetting("smtp_host")}
+                onChange={(e) => updateSetting("smtp_host", e.target.value)}
                 placeholder="smtp.gmail.com"
               />
             </div>
@@ -234,8 +289,8 @@ const SystemSettings = () => {
               <Label htmlFor="smtpPort">Porta SMTP</Label>
               <Input
                 id="smtpPort"
-                value={settings.smtpPort}
-                onChange={(e) => updateSetting("smtpPort", e.target.value)}
+                value={getSetting("smtp_port", "587")}
+                onChange={(e) => updateSetting("smtp_port", e.target.value)}
                 placeholder="587"
               />
             </div>
@@ -244,8 +299,8 @@ const SystemSettings = () => {
               <Input
                 id="smtpUser"
                 type="email"
-                value={settings.smtpUser}
-                onChange={(e) => updateSetting("smtpUser", e.target.value)}
+                value={getSetting("smtp_user")}
+                onChange={(e) => updateSetting("smtp_user", e.target.value)}
                 placeholder="sistema@empresa.com"
               />
             </div>
@@ -254,8 +309,8 @@ const SystemSettings = () => {
               <Input
                 id="smtpPassword"
                 type={showPasswords ? "text" : "password"}
-                value={settings.smtpPassword}
-                onChange={(e) => updateSetting("smtpPassword", e.target.value)}
+                value={getSetting("smtp_password")}
+                onChange={(e) => updateSetting("smtp_password", e.target.value)}
                 placeholder="senha_ou_app_password"
               />
             </div>
@@ -265,8 +320,8 @@ const SystemSettings = () => {
             <Label htmlFor="smtpFromName">Nome do Remetente</Label>
             <Input
               id="smtpFromName"
-              value={settings.smtpFromName}
-              onChange={(e) => updateSetting("smtpFromName", e.target.value)}
+              value={getSetting("smtp_from_name", "Sistema NFSe")}
+              onChange={(e) => updateSetting("smtp_from_name", e.target.value)}
               placeholder="Sistema NFSe"
             />
           </div>
@@ -300,22 +355,9 @@ const SystemSettings = () => {
               <Input
                 id="scheduledTime"
                 type="time"
-                value={settings.scheduledTime}
-                onChange={(e) => updateSetting("scheduledTime", e.target.value)}
+                value={getSetting("scheduled_time", "18:00")}
+                onChange={(e) => updateSetting("scheduled_time", e.target.value)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="timezone">Fuso Horário</Label>
-              <Select value={settings.timezone || undefined} onValueChange={(value) => updateSetting("timezone", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o fuso horário" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="America/Sao_Paulo">America/São_Paulo (BRT)</SelectItem>
-                  <SelectItem value="America/Fortaleza">America/Fortaleza (BRT)</SelectItem>
-                  <SelectItem value="America/Manaus">America/Manaus (AMT)</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="retryAttempts">Tentativas de Reenvio</Label>
@@ -324,8 +366,8 @@ const SystemSettings = () => {
                 type="number"
                 min="1"
                 max="10"
-                value={settings.retryAttempts}
-                onChange={(e) => updateSetting("retryAttempts", e.target.value)}
+                value={getSetting("retry_attempts", "3")}
+                onChange={(e) => updateSetting("retry_attempts", e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -335,59 +377,26 @@ const SystemSettings = () => {
                 type="number"
                 min="1"
                 max="120"
-                value={settings.retryInterval}
-                onChange={(e) => updateSetting("retryInterval", e.target.value)}
+                value={getSetting("retry_interval", "30")}
+                onChange={(e) => updateSetting("retry_interval", e.target.value)}
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Arquivo .env de exemplo */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Exemplo de arquivo .env</CardTitle>
-          <CardDescription>
-            Use este modelo para configurar suas variáveis de ambiente
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-gray-100 p-4 rounded-lg font-mono text-sm">
-            <pre>{`# Configurações do Banco de Dados
-DB_HOST=localhost
-DB_PORT=1433
-DB_NAME=nfse_db
-DB_USER=admin
-DB_PASSWORD=sua_senha_banco
-
-# Configurações da API PlugNotas
-API_URL=https://api.plugnotas.com.br/nfse
-API_KEY=sua_chave_api_plugnotas
-
-# Configurações de Email SMTP
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=sistema@empresa.com
-SMTP_PASSWORD=sua_senha_email
-SMTP_FROM_NAME=Sistema NFSe
-
-# Configurações de Agendamento
-SCHEDULED_TIME=18:00
-TIMEZONE=America/Sao_Paulo
-RETRY_ATTEMPTS=3
-RETRY_INTERVAL=30
-
-# Configurações de Segurança
-JWT_SECRET=seu_jwt_secret_aqui
-ENCRYPTION_KEY=sua_chave_criptografia`}</pre>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Botão de Salvar */}
       <div className="flex justify-end">
-        <Button onClick={handleSave} className="flex items-center gap-2">
-          <Save className="h-4 w-4" />
+        <Button 
+          onClick={handleSave} 
+          className="flex items-center gap-2"
+          disabled={updateSettingMutation.isPending}
+        >
+          {updateSettingMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
           Salvar Configurações
         </Button>
       </div>
