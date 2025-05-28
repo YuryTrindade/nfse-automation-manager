@@ -14,13 +14,15 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  FileSearch
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import EmailManagement from "@/components/EmailManagement";
 import CustomSend from "@/components/CustomSend";
 import SystemSettings from "@/components/SystemSettings";
 import LogViewer from "@/components/LogViewer";
+import NotesAvailable from "@/components/NotesAvailable";
 
 const Index = () => {
   const [isSystemActive, setIsSystemActive] = useState(true);
@@ -157,7 +159,7 @@ const Index = () => {
 
         {/* Tabs para diferentes funcionalidades */}
         <Tabs defaultValue="emails" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="emails" className="flex items-center gap-2">
               <Mail className="h-4 w-4" />
               Emails
@@ -165,6 +167,10 @@ const Index = () => {
             <TabsTrigger value="custom" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               Envio Personalizado
+            </TabsTrigger>
+            <TabsTrigger value="available" className="flex items-center gap-2">
+              <FileSearch className="h-4 w-4" />
+              Notas Disponíveis
             </TabsTrigger>
             <TabsTrigger value="logs" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
@@ -182,6 +188,10 @@ const Index = () => {
 
           <TabsContent value="custom">
             <CustomSend />
+          </TabsContent>
+
+          <TabsContent value="available">
+            <NotesAvailable />
           </TabsContent>
 
           <TabsContent value="logs">
