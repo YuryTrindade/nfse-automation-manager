@@ -122,7 +122,7 @@ const CustomSend = () => {
 
             <div className="space-y-2">
               <Label htmlFor="cdServico">Código do Serviço</Label>
-              <Select value={cdServico} onValueChange={setCdServico}>
+              <Select value={cdServico || undefined} onValueChange={setCdServico}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o serviço" />
                 </SelectTrigger>

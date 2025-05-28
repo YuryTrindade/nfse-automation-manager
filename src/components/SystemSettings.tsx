@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -307,9 +306,9 @@ const SystemSettings = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="timezone">Fuso Horário</Label>
-              <Select value={settings.timezone} onValueChange={(value) => updateSetting("timezone", value)}>
+              <Select value={settings.timezone || undefined} onValueChange={(value) => updateSetting("timezone", value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione o fuso horário" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="America/Sao_Paulo">America/São_Paulo (BRT)</SelectItem>
