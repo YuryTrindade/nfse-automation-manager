@@ -10,83 +10,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RefreshCw, Search, Send, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAddSystemLog } from "@/hooks/useSystemLogs";
-
-interface Note {
-  id: string;
-  numeroRps: string;
-  serieRps: string;
-  dataEmissao: string;
-  cnpjPrestador: string;
-  razaoSocialTomador: string;
-  valorServicos: number;
-  cdServico: string;
-  status: 'Pendente' | 'Erro' | 'Processando';
-  motivoErro?: string;
-}
+import { useNfseNotes, useUpdateNfseNote, type NfseNoteFilters } from "@/hooks/useNfseNotes";
 
 const NotesAvailable = () => {
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<NfseNoteFilters>({
     cnpjPrestador: '',
     status: '',
     dataInicio: '',
     dataFim: ''
   });
+  const [searchExecuted, setSearchExecuted] = useState(false);
   const { toast } = useToast();
   const addLogMutation = useAddSystemLog();
+  const updateNoteMutation = useUpdateNfseNote();
 
-  const mockNotes: Note[] = [
-    {
-      id: "1",
-      numeroRps: "001",
-      serieRps: "A1",
-      dataEmissao: "2024-05-28",
-      cnpjPrestador: "12.345.678/0001-90",
-      razaoSocialTomador: "Empresa ABC Ltda",
-      valorServicos: 1500.00,
-      cdServico: "101",
-      status: "Pendente"
-    },
-    {
-      id: "2",
-      numeroRps: "002",
-      serieRps: "A1",
-      dataEmissao: "2024-05-28",
-      cnpjPrestador: "12.345.678/0001-90",
-      razaoSocialTomador: "Empresa XYZ S.A.",
-      valorServicos: 2300.00,
-      cdServico: "201",
-      status: "Pendente"
-    },
-    {
-      id: "3",
-      numeroRps: "003",
-      serieRps: "A1",
-      dataEmissao: "2024-05-27",
-      cnpjPrestador: "98.765.432/0001-10",
-      razaoSocialTomador: "Empresa 123 Ltda",
-      valorServicos: 850.00,
-      cdServico: "301",
-      status: "Erro",
-      motivoErro: "CNPJ inválido"
-    },
-    {
-      id: "4",
-      numeroRps: "004",
-      serieRps: "B1",
-      dataEmissao: "2024-05-27",
-      cnpjPrestador: "12.345.678/0001-90",
-      razaoSocialTomador: "Empresa DEF S.A.",
-      valorServicos: 3200.00,
-      cdServico: "101",
-      status: "Pendente"
-    }
-  ];
+  const { data: notes = [], isLoading, error, refetch } = useNfseNotes(searchExecuted ? filters : undefined);
 
   const handleSearch = async () => {
-    setLoading(true);
-
     try {
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
@@ -95,38 +35,23 @@ const NotesAvailable = () => {
         details: `Filtros aplicados: CNPJ: ${filters.cnpjPrestador || 'Todos'}, Status: ${filters.status || 'Todos'}`,
       });
 
-      setTimeout(async () => {
-        let filteredNotes = mockNotes;
+      setSearchExecuted(true);
+      await refetch();
 
-        if (filters.cnpjPrestador) {
-          filteredNotes = filteredNotes.filter(note => 
-            note.cnpjPrestador.includes(filters.cnpjPrestador)
-          );
-        }
+      await addLogMutation.mutateAsync({
+        timestamp: new Date().toISOString(),
+        type: 'success',
+        message: 'Consulta de notas concluída',
+        details: `${notes.length} notas encontradas`,
+        notes_count: notes.length,
+      });
 
-        if (filters.status) {
-          filteredNotes = filteredNotes.filter(note => note.status === filters.status);
-        }
-
-        setNotes(filteredNotes);
-        setLoading(false);
-
-        await addLogMutation.mutateAsync({
-          timestamp: new Date().toISOString(),
-          type: 'success',
-          message: 'Consulta de notas concluída',
-          details: `${filteredNotes.length} notas encontradas`,
-          notes_count: filteredNotes.length,
-        });
-
-        toast({
-          title: "Consulta realizada",
-          description: `${filteredNotes.length} notas encontradas`,
-        });
-      }, 1000);
+      toast({
+        title: "Consulta realizada",
+        description: `${notes.length} notas encontradas`,
+      });
 
     } catch (error) {
-      setLoading(false);
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
         type: 'error',
@@ -147,22 +72,23 @@ const NotesAvailable = () => {
       const note = notes.find(n => n.id === noteId);
       if (!note) return;
 
+      await updateNoteMutation.mutateAsync({
+        id: noteId,
+        updates: { status: 'Processando' }
+      });
+
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
         type: 'info',
         message: 'Envio individual de nota iniciado',
-        details: `RPS: ${note.numeroRps}/${note.serieRps} - ${note.razaoSocialTomador}`,
+        details: `RPS: ${note.numero_rps}/${note.serie_rps} - ${note.razao_social_tomador}`,
         notes_count: 1,
       });
 
       toast({
         title: "Nota enviada",
-        description: `RPS ${note.numeroRps}/${note.serieRps} foi enviada para processamento`,
+        description: `RPS ${note.numero_rps}/${note.serie_rps} foi enviada para processamento`,
       });
-
-      setNotes(prev => prev.map(n => 
-        n.id === noteId ? { ...n, status: 'Processando' as const } : n
-      ));
 
     } catch (error) {
       toast({
@@ -177,12 +103,14 @@ const NotesAvailable = () => {
     const variants = {
       'Pendente': 'default',
       'Erro': 'destructive',
-      'Processando': 'secondary'
+      'Processando': 'secondary',
+      'Enviado': 'default',
+      'Cancelado': 'outline'
     } as const;
 
     return (
       <div className="flex flex-col gap-1">
-        <Badge variant={variants[status as keyof typeof variants]}>
+        <Badge variant={variants[status as keyof typeof variants] || 'default'}>
           {status}
         </Badge>
         {motivoErro && (
@@ -191,6 +119,18 @@ const NotesAvailable = () => {
       </div>
     );
   };
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center text-red-600">
+            Erro ao carregar notas: {error.message}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -226,10 +166,12 @@ const NotesAvailable = () => {
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="">Todos</SelectItem>
                   <SelectItem value="Pendente">Pendente</SelectItem>
                   <SelectItem value="Erro">Erro</SelectItem>
                   <SelectItem value="Processando">Processando</SelectItem>
+                  <SelectItem value="Enviado">Enviado</SelectItem>
+                  <SelectItem value="Cancelado">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -258,15 +200,15 @@ const NotesAvailable = () => {
           <Button 
             onClick={handleSearch}
             className="w-full flex items-center gap-2"
-            disabled={loading}
+            disabled={isLoading}
           >
-            {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            {loading ? "Consultando..." : "Consultar Notas"}
+            {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            {isLoading ? "Consultando..." : "Consultar Notas"}
           </Button>
         </CardContent>
       </Card>
 
-      {notes.length > 0 && (
+      {searchExecuted && (
         <Card>
           <CardHeader>
             <CardTitle>Notas Encontradas</CardTitle>
@@ -275,61 +217,69 @@ const NotesAvailable = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>RPS</TableHead>
-                  <TableHead>Data Emissão</TableHead>
-                  <TableHead>CNPJ Prestador</TableHead>
-                  <TableHead>Tomador</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Serviço</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {notes.map((note) => (
-                  <TableRow key={note.id}>
-                    <TableCell className="font-medium">
-                      {note.numeroRps}/{note.serieRps}
-                    </TableCell>
-                    <TableCell>{note.dataEmissao}</TableCell>
-                    <TableCell>{note.cnpjPrestador}</TableCell>
-                    <TableCell>{note.razaoSocialTomador}</TableCell>
-                    <TableCell>R$ {note.valorServicos.toFixed(2)}</TableCell>
-                    <TableCell>{note.cdServico}</TableCell>
-                    <TableCell>
-                      {getStatusBadge(note.status, note.motivoErro)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            toast({
-                              title: "Detalhes da Nota",
-                              description: `RPS: ${note.numeroRps}/${note.serieRps} - Valor: R$ ${note.valorServicos.toFixed(2)}`,
-                            });
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {note.status === 'Pendente' && (
+            {notes.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>RPS</TableHead>
+                    <TableHead>Data Emissão</TableHead>
+                    <TableHead>CNPJ Prestador</TableHead>
+                    <TableHead>Tomador</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Serviço</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {notes.map((note) => (
+                    <TableRow key={note.id}>
+                      <TableCell className="font-medium">
+                        {note.numero_rps}/{note.serie_rps}
+                      </TableCell>
+                      <TableCell>{note.data_emissao}</TableCell>
+                      <TableCell>{note.cnpj_prestador}</TableCell>
+                      <TableCell>{note.razao_social_tomador}</TableCell>
+                      <TableCell>R$ {note.valor_servicos.toFixed(2)}</TableCell>
+                      <TableCell>{note.cd_servico}</TableCell>
+                      <TableCell>
+                        {getStatusBadge(note.status, note.motivo_erro)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
                           <Button
                             size="sm"
-                            onClick={() => handleSendNote(note.id)}
+                            variant="outline"
+                            onClick={() => {
+                              toast({
+                                title: "Detalhes da Nota",
+                                description: `RPS: ${note.numero_rps}/${note.serie_rps} - Valor: R$ ${note.valor_servicos.toFixed(2)}`,
+                              });
+                            }}
                           >
-                            <Send className="h-4 w-4" />
+                            <Eye className="h-4 w-4" />
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          {note.status === 'Pendente' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleSendNote(note.id)}
+                              disabled={updateNoteMutation.isPending}
+                            >
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>Nenhuma nota encontrada com os filtros aplicados</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

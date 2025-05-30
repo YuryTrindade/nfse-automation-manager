@@ -9,6 +9,51 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      nfse_notes: {
+        Row: {
+          cd_servico: string
+          cnpj_prestador: string
+          created_at: string
+          data_emissao: string
+          id: string
+          motivo_erro: string | null
+          numero_rps: string
+          razao_social_tomador: string
+          serie_rps: string
+          status: string
+          updated_at: string
+          valor_servicos: number
+        }
+        Insert: {
+          cd_servico: string
+          cnpj_prestador: string
+          created_at?: string
+          data_emissao: string
+          id?: string
+          motivo_erro?: string | null
+          numero_rps: string
+          razao_social_tomador: string
+          serie_rps: string
+          status?: string
+          updated_at?: string
+          valor_servicos: number
+        }
+        Update: {
+          cd_servico?: string
+          cnpj_prestador?: string
+          created_at?: string
+          data_emissao?: string
+          id?: string
+          motivo_erro?: string | null
+          numero_rps?: string
+          razao_social_tomador?: string
+          serie_rps?: string
+          status?: string
+          updated_at?: string
+          valor_servicos?: number
+        }
+        Relationships: []
+      }
       notification_emails: {
         Row: {
           created_at: string

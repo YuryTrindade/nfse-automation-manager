@@ -13,44 +13,30 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAddSystemLog } from "@/hooks/useSystemLogs";
+import { useNfseNotes, useUpdateNfseNote, type NfseNoteFilters } from "@/hooks/useNfseNotes";
 
 const CustomSend = () => {
   const [cnpjPrestador, setCnpjPrestador] = useState("");
   const [cdServico, setCdServico] = useState<string>("");
   const [dataInicio, setDataInicio] = useState<Date>();
   const [dataFim, setDataFim] = useState<Date>();
-  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [searchExecuted, setSearchExecuted] = useState(false);
   const { toast } = useToast();
   const addLogMutation = useAddSystemLog();
+  const updateNoteMutation = useUpdateNfseNote();
 
-  const mockResults = [
-    {
-      id: "NFSE_001",
-      numeroRps: "123",
-      serieRps: "A1",
-      dataEmissao: "2024-05-28",
-      cnpjPrestador: "12.345.678/0001-90",
-      razaoSocialTomador: "Empresa ABC Ltda",
-      valorServicos: 1500.00,
-      status: "Pendente"
-    },
-    {
-      id: "NFSE_002",
-      numeroRps: "124",
-      serieRps: "A1",
-      dataEmissao: "2024-05-28",
-      cnpjPrestador: "12.345.678/0001-90",
-      razaoSocialTomador: "Empresa XYZ S.A.",
-      valorServicos: 2300.00,
-      status: "Pendente"
-    }
-  ];
+  const filters: NfseNoteFilters = {
+    cnpjPrestador,
+    cdServico,
+    dataInicio: dataInicio ? format(dataInicio, 'yyyy-MM-dd') : undefined,
+    dataFim: dataFim ? format(dataFim, 'yyyy-MM-dd') : undefined,
+    status: 'Pendente' // Só buscar notas pendentes para envio personalizado
+  };
+
+  const { data: searchResults = [], isLoading: isSearching, refetch } = useNfseNotes(searchExecuted ? filters : undefined);
 
   const handleSearch = async () => {
-    setIsSearching(true);
-    
     try {
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
@@ -59,30 +45,33 @@ const CustomSend = () => {
         details: `Filtros: CNPJ: ${cnpjPrestador}, Serviço: ${cdServico || 'N/A'}, Período: ${dataInicio ? format(dataInicio, 'dd/MM/yyyy') : 'N/A'} - ${dataFim ? format(dataFim, 'dd/MM/yyyy') : 'N/A'}`,
       });
 
-      setTimeout(async () => {
-        setSearchResults(mockResults);
-        setIsSearching(false);
-        
-        await addLogMutation.mutateAsync({
-          timestamp: new Date().toISOString(),
-          type: 'success',
-          message: 'Busca personalizada concluída',
-          details: `${mockResults.length} notas encontradas para os filtros aplicados`,
-          notes_count: mockResults.length,
-        });
+      setSearchExecuted(true);
+      await refetch();
+      
+      await addLogMutation.mutateAsync({
+        timestamp: new Date().toISOString(),
+        type: 'success',
+        message: 'Busca personalizada concluída',
+        details: `${searchResults.length} notas encontradas para os filtros aplicados`,
+        notes_count: searchResults.length,
+      });
 
-        toast({
-          title: "Busca concluída",
-          description: `${mockResults.length} notas encontradas`,
-        });
-      }, 1500);
+      toast({
+        title: "Busca concluída",
+        description: `${searchResults.length} notas encontradas`,
+      });
     } catch (error) {
-      setIsSearching(false);
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
         type: 'error',
         message: 'Erro na busca personalizada',
         details: `Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+      });
+
+      toast({
+        title: "Erro na busca",
+        description: "Não foi possível realizar a busca",
+        variant: "destructive",
       });
     }
   };
@@ -114,6 +103,14 @@ const CustomSend = () => {
     }
 
     try {
+      // Atualizar status de todas as notas selecionadas
+      for (const noteId of selectedNotes) {
+        await updateNoteMutation.mutateAsync({
+          id: noteId,
+          updates: { status: 'Processando' }
+        });
+      }
+
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
         type: 'success',
@@ -128,7 +125,7 @@ const CustomSend = () => {
       });
       
       setSelectedNotes([]);
-      setSearchResults([]);
+      setSearchExecuted(false);
     } catch (error) {
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
@@ -177,6 +174,7 @@ const CustomSend = () => {
                   <SelectValue placeholder="Selecione o serviço" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Todos os serviços</SelectItem>
                   <SelectItem value="101">101 - Análise e desenvolvimento de sistemas</SelectItem>
                   <SelectItem value="201">201 - Serviços de informática</SelectItem>
                   <SelectItem value="301">301 - Consultoria</SelectItem>
@@ -251,7 +249,7 @@ const CustomSend = () => {
         </CardContent>
       </Card>
 
-      {searchResults.length > 0 && (
+      {searchExecuted && searchResults.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -287,13 +285,13 @@ const CustomSend = () => {
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">RPS {note.numeroRps}/{note.serieRps}</span>
+                        <span className="font-medium">RPS {note.numero_rps}/{note.serie_rps}</span>
                         <Badge variant="secondary">{note.status}</Badge>
                       </div>
-                      <p className="text-sm text-gray-600">{note.razaoSocialTomador}</p>
+                      <p className="text-sm text-gray-600">{note.razao_social_tomador}</p>
                       <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>Data: {note.dataEmissao}</span>
-                        <span>Valor: R$ {note.valorServicos.toFixed(2)}</span>
+                        <span>Data: {note.data_emissao}</span>
+                        <span>Valor: R$ {note.valor_servicos.toFixed(2)}</span>
                       </div>
                     </div>
                     <div className="flex items-center">
@@ -315,13 +313,28 @@ const CustomSend = () => {
                   <span className="text-sm text-gray-600">
                     {selectedNotes.length} notas selecionadas
                   </span>
-                  <Button onClick={handleCustomSend} className="flex items-center gap-2">
+                  <Button 
+                    onClick={handleCustomSend} 
+                    className="flex items-center gap-2"
+                    disabled={updateNoteMutation.isPending}
+                  >
                     <Send className="h-4 w-4" />
                     Enviar Selecionadas
                   </Button>
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {searchExecuted && searchResults.length === 0 && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center py-8 text-gray-500">
+              <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>Nenhuma nota pendente encontrada com os filtros aplicados</p>
+            </div>
           </CardContent>
         </Card>
       )}
