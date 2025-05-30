@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { useAddSystemLog } from "@/hooks/useSystemLogs";
 
 const CustomSend = () => {
   const [cnpjPrestador, setCnpjPrestador] = useState("");
-  const [cdServico, setCdServico] = useState("");
+  const [cdServico, setCdServico] = useState<string | undefined>(undefined);
   const [dataInicio, setDataInicio] = useState<Date>();
   const [dataFim, setDataFim] = useState<Date>();
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -57,7 +58,7 @@ const CustomSend = () => {
         timestamp: new Date().toISOString(),
         type: 'info',
         message: 'Busca personalizada de notas iniciada',
-        details: `Filtros: CNPJ: ${cnpjPrestador}, Serviço: ${cdServico}, Período: ${dataInicio ? format(dataInicio, 'dd/MM/yyyy') : 'N/A'} - ${dataFim ? format(dataFim, 'dd/MM/yyyy') : 'N/A'}`,
+        details: `Filtros: CNPJ: ${cnpjPrestador}, Serviço: ${cdServico || 'N/A'}, Período: ${dataInicio ? format(dataInicio, 'dd/MM/yyyy') : 'N/A'} - ${dataFim ? format(dataFim, 'dd/MM/yyyy') : 'N/A'}`,
       });
 
       // Simular busca no backend
@@ -177,7 +178,7 @@ const CustomSend = () => {
 
             <div className="space-y-2">
               <Label htmlFor="cdServico">Código do Serviço</Label>
-              <Select value={cdServico || undefined} onValueChange={setCdServico}>
+              <Select value={cdServico} onValueChange={setCdServico}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o serviço" />
                 </SelectTrigger>
