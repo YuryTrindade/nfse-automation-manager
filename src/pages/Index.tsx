@@ -5,6 +5,7 @@ import DashboardHeader from "@/components/DashboardHeader";
 import StatusCards from "@/components/StatusCards";
 import MainControls from "@/components/MainControls";
 import DashboardTabs from "@/components/DashboardTabs";
+import SecurityAuditLogger from "@/components/SecurityAuditLogger";
 
 const Index = () => {
   const [isSystemActive, setIsSystemActive] = useState(true);
@@ -34,6 +35,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+      <SecurityAuditLogger />
       <div className="max-w-7xl mx-auto space-y-6">
         <DashboardHeader />
         

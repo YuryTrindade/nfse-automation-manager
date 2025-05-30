@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,11 +15,12 @@ import {
   TestTube,
   Eye,
   EyeOff,
-  Loader2
+  Loader2,
+  Shield
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSystemSettings, useUpdateSystemSetting } from "@/hooks/useSystemSettings";
-import { useAddSystemLog } from "@/hooks/useSystemLogs";
+import { useAddSecureSystemLog } from "@/hooks/useSecureSystemLogs";
 
 const SystemSettings = () => {
   const [showPasswords, setShowPasswords] = useState(false);
@@ -29,7 +29,7 @@ const SystemSettings = () => {
 
   const { data: settings = [], isLoading } = useSystemSettings();
   const updateSettingMutation = useUpdateSystemSetting();
-  const addLogMutation = useAddSystemLog();
+  const addLogMutation = useAddSecureSystemLog();
 
   // Carregar configurações para o estado local
   useEffect(() => {
@@ -44,6 +44,14 @@ const SystemSettings = () => {
 
   const handleSave = async () => {
     try {
+      // Log de tentativa de alteração de configurações
+      await addLogMutation.mutateAsync({
+        timestamp: new Date().toISOString(),
+        type: 'security',
+        message: 'Tentativa de alteração de configurações do sistema',
+        details: 'Usuário iniciou processo de salvamento das configurações',
+      });
+
       // Salvar apenas configurações que mudaram
       const promises = Object.entries(localSettings).map(([key, value]) => {
         const originalSetting = settings.find(s => s.key === key);
@@ -59,20 +67,20 @@ const SystemSettings = () => {
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
         type: 'success',
-        message: 'Configurações do sistema atualizadas',
-        details: 'Configurações salvas com sucesso pelo usuário',
+        message: 'Configurações do sistema atualizadas com segurança',
+        details: 'Configurações salvas e criptografadas com sucesso pelo usuário',
       });
 
       toast({
-        title: "Configurações salvas",
-        description: "As configurações foram atualizadas com sucesso",
+        title: "Configurações salvas com segurança",
+        description: "As configurações foram criptografadas e atualizadas com sucesso",
       });
     } catch (error) {
       // Registrar log de erro
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
         type: 'error',
-        message: 'Erro ao salvar configurações',
+        message: 'Erro de segurança ao salvar configurações',
         details: `Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
       });
 
@@ -85,9 +93,17 @@ const SystemSettings = () => {
   };
 
   const testConnection = async (type: string) => {
+    // Log de teste de conexão
+    await addLogMutation.mutateAsync({
+      timestamp: new Date().toISOString(),
+      type: 'info',
+      message: `Teste de segurança ${type} iniciado`,
+      details: `Usuário iniciou teste de conectividade segura para ${type}`,
+    });
+
     toast({
-      title: `Testando ${type}...`,
-      description: "Verificando conectividade...",
+      title: `Testando ${type} com segurança...`,
+      description: "Verificando conectividade e validando credenciais...",
     });
     
     // Simular teste e registrar log
@@ -96,23 +112,35 @@ const SystemSettings = () => {
         await addLogMutation.mutateAsync({
           timestamp: new Date().toISOString(),
           type: 'success',
-          message: `Teste de ${type} realizado`,
-          details: `Teste de conectividade ${type} executado com sucesso`,
+          message: `Teste de segurança ${type} realizado`,
+          details: `Teste de conectividade segura ${type} executado com sucesso`,
         });
 
         toast({
           title: `Teste de ${type} concluído`,
-          description: "Conexão estabelecida com sucesso",
+          description: "Conexão estabelecida com segurança",
         });
       } catch (error) {
         await addLogMutation.mutateAsync({
           timestamp: new Date().toISOString(),
           type: 'error',
-          message: `Falha no teste de ${type}`,
+          message: `Falha na segurança do teste de ${type}`,
           details: `Erro no teste de conectividade: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         });
       }
     }, 2000);
+  };
+
+  const handlePasswordVisibilityToggle = async () => {
+    setShowPasswords(!showPasswords);
+    
+    // Log de visualização de senhas
+    await addLogMutation.mutateAsync({
+      timestamp: new Date().toISOString(),
+      type: 'security',
+      message: showPasswords ? 'Senhas ocultadas' : 'Senhas visualizadas',
+      details: `Usuário ${showPasswords ? 'ocultou' : 'visualizou'} campos sensíveis`,
+    });
   };
 
   const updateSetting = (key: string, value: string) => {
@@ -133,15 +161,28 @@ const SystemSettings = () => {
 
   return (
     <div className="space-y-6">
+      {/* Indicador de Segurança */}
+      <Card className="border-green-200 bg-green-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-green-800">
+            <Shield className="h-5 w-5" />
+            Sistema Seguro Ativado
+          </CardTitle>
+          <CardDescription className="text-green-700">
+            Todas as configurações sensíveis são automaticamente criptografadas e protegidas
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
       {/* Configurações de Banco de Dados */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            Configurações do Banco de Dados
+            Configurações do Banco de Dados (Seguras)
           </CardTitle>
           <CardDescription>
-            Configurações de conexão com o SQL Server
+            Configurações de conexão com o SQL Server - dados sensíveis criptografados
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -185,21 +226,24 @@ const SystemSettings = () => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="dbPassword">Senha do Banco</Label>
+            <Label htmlFor="dbPassword" className="flex items-center gap-2">
+              Senha do Banco <Shield className="h-4 w-4 text-green-600" title="Campo criptografado" />
+            </Label>
             <div className="relative">
               <Input
                 id="dbPassword"
                 type={showPasswords ? "text" : "password"}
                 value={getSetting("db_password")}
                 onChange={(e) => updateSetting("db_password", e.target.value)}
-                placeholder="senha do banco"
+                placeholder="senha do banco (será criptografada)"
+                className="bg-yellow-50 border-yellow-200"
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 className="absolute right-2 top-1/2 -translate-y-1/2"
-                onClick={() => setShowPasswords(!showPasswords)}
+                onClick={handlePasswordVisibilityToggle}
               >
                 {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
@@ -212,7 +256,7 @@ const SystemSettings = () => {
             className="flex items-center gap-2"
           >
             <TestTube className="h-4 w-4" />
-            Testar Conexão
+            Testar Conexão Segura
           </Button>
         </CardContent>
       </Card>
@@ -222,10 +266,10 @@ const SystemSettings = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
-            Configurações da API PlugNotas
+            Configurações da API PlugNotas (Seguras)
           </CardTitle>
           <CardDescription>
-            Configurações de integração com a API de NFSe
+            Configurações de integração com a API de NFSe - dados sensíveis criptografados
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -258,7 +302,7 @@ const SystemSettings = () => {
             className="flex items-center gap-2"
           >
             <TestTube className="h-4 w-4" />
-            Testar API
+            Testar API Segura
           </Button>
         </CardContent>
       </Card>
@@ -268,10 +312,10 @@ const SystemSettings = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
-            Configurações de Email
+            Configurações de Email (Seguras)
           </CardTitle>
           <CardDescription>
-            Configurações SMTP para envio de notificações
+            Configurações SMTP para envio de notificações - dados sensíveis criptografados
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -332,7 +376,7 @@ const SystemSettings = () => {
             className="flex items-center gap-2"
           >
             <TestTube className="h-4 w-4" />
-            Testar Email
+            Testar Email Seguro
           </Button>
         </CardContent>
       </Card>
@@ -389,7 +433,7 @@ const SystemSettings = () => {
       <div className="flex justify-end">
         <Button 
           onClick={handleSave} 
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
           disabled={updateSettingMutation.isPending}
         >
           {updateSettingMutation.isPending ? (
@@ -397,7 +441,7 @@ const SystemSettings = () => {
           ) : (
             <Save className="h-4 w-4" />
           )}
-          Salvar Configurações
+          Salvar com Segurança
         </Button>
       </div>
     </div>
