@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,9 @@ const CustomSend = () => {
   const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
   const addLogMutation = useAddSystemLog();
+
+  // Log para debug
+  console.log('CustomSend cdServico state:', cdServico);
 
   // Dados simulados para demonstração
   const mockResults = [
@@ -178,7 +180,10 @@ const CustomSend = () => {
 
             <div className="space-y-2">
               <Label htmlFor="cdServico">Código do Serviço</Label>
-              <Select value={cdServico} onValueChange={setCdServico}>
+              <Select value={cdServico} onValueChange={(value) => {
+                console.log('Select onValueChange called with:', value);
+                setCdServico(value);
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o serviço" />
                 </SelectTrigger>
