@@ -17,7 +17,7 @@ export const useSystemSettings = () => {
     queryKey: ['system-settings'],
     queryFn: async () => {
       // Buscar configurações usando função que descriptografa automaticamente
-      const { data, error } = await supabase.rpc('get_all_decrypted_settings');
+      const { data, error } = await supabase.rpc('get_all_decrypted_settings' as any);
       
       if (error) {
         console.error('Erro ao buscar configurações:', error);
@@ -50,7 +50,7 @@ export const useUpdateSystemSetting = () => {
 
       if (settingInfo?.is_sensitive) {
         // Para dados sensíveis, usar função de criptografia
-        const { data, error } = await supabase.rpc('update_encrypted_setting', {
+        const { data, error } = await supabase.rpc('update_encrypted_setting' as any, {
           setting_key: key,
           setting_value: value
         });
@@ -91,7 +91,7 @@ export const useGetDecryptedSetting = (key: string) => {
   return useQuery({
     queryKey: ['decrypted-setting', key],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_decrypted_setting', {
+      const { data, error } = await supabase.rpc('get_decrypted_setting' as any, {
         setting_key: key
       });
       
