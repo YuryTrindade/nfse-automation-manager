@@ -36,7 +36,6 @@ const NotesAvailable = () => {
   const { toast } = useToast();
   const addLogMutation = useAddSystemLog();
 
-  // Dados simulados para demonstração
   const mockNotes: Note[] = [
     {
       id: "1",
@@ -96,7 +95,6 @@ const NotesAvailable = () => {
         details: `Filtros aplicados: CNPJ: ${filters.cnpjPrestador || 'Todos'}, Status: ${filters.status || 'Todos'}`,
       });
 
-      // Simular consulta ao banco de dados
       setTimeout(async () => {
         let filteredNotes = mockNotes;
 
@@ -162,7 +160,6 @@ const NotesAvailable = () => {
         description: `RPS ${note.numeroRps}/${note.serieRps} foi enviada para processamento`,
       });
 
-      // Atualizar status da nota
       setNotes(prev => prev.map(n => 
         n.id === noteId ? { ...n, status: 'Processando' as const } : n
       ));
@@ -221,12 +218,15 @@ const NotesAvailable = () => {
 
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+              <Select 
+                value={filters.status} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="Pendente">Pendente</SelectItem>
                   <SelectItem value="Erro">Erro</SelectItem>
                   <SelectItem value="Processando">Processando</SelectItem>

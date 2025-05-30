@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { useAddSystemLog } from "@/hooks/useSystemLogs";
 
 const CustomSend = () => {
   const [cnpjPrestador, setCnpjPrestador] = useState("");
-  const [cdServico, setCdServico] = useState<string | undefined>(undefined);
+  const [cdServico, setCdServico] = useState<string>("");
   const [dataInicio, setDataInicio] = useState<Date>();
   const [dataFim, setDataFim] = useState<Date>();
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -24,10 +25,6 @@ const CustomSend = () => {
   const { toast } = useToast();
   const addLogMutation = useAddSystemLog();
 
-  // Log para debug
-  console.log('CustomSend cdServico state:', cdServico);
-
-  // Dados simulados para demonstração
   const mockResults = [
     {
       id: "NFSE_001",
@@ -55,7 +52,6 @@ const CustomSend = () => {
     setIsSearching(true);
     
     try {
-      // Registrar log de busca
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
         type: 'info',
@@ -63,12 +59,10 @@ const CustomSend = () => {
         details: `Filtros: CNPJ: ${cnpjPrestador}, Serviço: ${cdServico || 'N/A'}, Período: ${dataInicio ? format(dataInicio, 'dd/MM/yyyy') : 'N/A'} - ${dataFim ? format(dataFim, 'dd/MM/yyyy') : 'N/A'}`,
       });
 
-      // Simular busca no backend
       setTimeout(async () => {
         setSearchResults(mockResults);
         setIsSearching(false);
         
-        // Registrar log de resultado
         await addLogMutation.mutateAsync({
           timestamp: new Date().toISOString(),
           type: 'success',
@@ -120,7 +114,6 @@ const CustomSend = () => {
     }
 
     try {
-      // Registrar log de envio
       await addLogMutation.mutateAsync({
         timestamp: new Date().toISOString(),
         type: 'success',
@@ -134,7 +127,6 @@ const CustomSend = () => {
         description: `${selectedNotes.length} notas foram enviadas para processamento`,
       });
       
-      // Reset após envio
       setSelectedNotes([]);
       setSearchResults([]);
     } catch (error) {
@@ -180,10 +172,7 @@ const CustomSend = () => {
 
             <div className="space-y-2">
               <Label htmlFor="cdServico">Código do Serviço</Label>
-              <Select value={cdServico} onValueChange={(value) => {
-                console.log('Select onValueChange called with:', value);
-                setCdServico(value);
-              }}>
+              <Select value={cdServico} onValueChange={setCdServico}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o serviço" />
                 </SelectTrigger>

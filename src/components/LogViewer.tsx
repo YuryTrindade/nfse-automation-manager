@@ -25,7 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const LogViewer = () => {
   const [filterDate, setFilterDate] = useState<Date>();
-  const [filterType, setFilterType] = useState("");
+  const [filterType, setFilterType] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
@@ -115,7 +115,6 @@ const LogViewer = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Filtros */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Buscar</Label>
@@ -137,7 +136,7 @@ const LogViewer = () => {
                   <SelectValue placeholder="Todos os tipos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os tipos</SelectItem>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
                   <SelectItem value="success">Sucesso</SelectItem>
                   <SelectItem value="error">Erro</SelectItem>
                   <SelectItem value="warning">Aviso</SelectItem>
@@ -187,7 +186,6 @@ const LogViewer = () => {
             </div>
           </div>
 
-          {/* Estatísticas rápidas */}
           {!isLoading && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
               <div className="text-center">
@@ -219,7 +217,6 @@ const LogViewer = () => {
         </CardContent>
       </Card>
 
-      {/* Lista de Logs */}
       <Card>
         <CardHeader>
           <CardTitle>Histórico de Execuções</CardTitle>
