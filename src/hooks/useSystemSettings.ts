@@ -48,8 +48,6 @@ export const useUpdateSystemSetting = () => {
         .eq('key', key)
         .single();
 
-      let updateData;
-      
       if (settingInfo?.is_sensitive) {
         // Para dados sensíveis, usar função de criptografia
         const { data, error } = await supabase.rpc('update_encrypted_setting', {
